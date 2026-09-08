@@ -1,0 +1,40 @@
+name: Fetch metal prices
+
+on:
+  schedule:
+    # Dubai is UTC+4 year-round (no DST) — these correspond to
+    # 10:00, 14:00, 18:00 Dubai time.
+    - cron: "0 6 * * *"
+    - cron: "0 10 * * *"
+    - cron: "0 14 * * *"
+  workflow_dispatch: {}   # lets you trigger a run manually from the Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Fetch prices
+        run: python3 scripts/fetch_prices.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "metal-price-log bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/
+          if ! git diff --cached --quiet; then
+            git commit -m "Update prices: $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          else
+            echo "No changes to commit."
+          fi
